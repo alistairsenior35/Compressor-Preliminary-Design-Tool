@@ -5,6 +5,9 @@ Created on Thu Jul 17 11:47:57 2025
 @author: as2375
 """
 import numpy as np # linear algebra
+import math
+np.math = math
+
 from equadratures import Parameter, Poly, Basis
 import operator as op
 from functools import reduce
