@@ -1,3 +1,11 @@
 streamlit
 plotly
 numpy
+pickle
+equadratures
+operator
+copy
+functools
+scipy
+pandas
+math
