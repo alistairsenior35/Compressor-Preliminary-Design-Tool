@@ -1,0 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jul 17 11:49:32 2025
+
+@author: as2375
+"""
+
+streamlit
+plotly
+numpy
