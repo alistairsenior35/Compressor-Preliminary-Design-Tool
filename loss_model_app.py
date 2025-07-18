@@ -302,12 +302,16 @@ RT_cas = xrrt_cas[:, 2].reshape(n_r, n_chord)
 fig_blade.update_layout(
     title="🌀 Blade Surface Geometry",
     scene=dict(
-        xaxis_title="Axial (x)",
-        yaxis_title="Radial (r)",        # vertical axis now
-        zaxis_title="Tangential (rt)",
-        camera=dict(
-            eye=dict(x=1.8, y=1.8, z=1.8)  # top-right view angle
-        ),
+        xaxis=dict(title='Axial (x)', autorange=True),
+       yaxis=dict(title='Radial (r)', autorange=True),
+       zaxis=dict(title='Tangential (rt)', autorange="reversed"),
+
+       camera=dict(
+           eye=dict(x=2, y=0.5, z=2),     # view from front-right
+           up=dict(x=0, y=1, z=0)         # sets radial 'up' direction
+       ),
+
+
         aspectmode="cube",  # ensures equal scaling
 
     ),
