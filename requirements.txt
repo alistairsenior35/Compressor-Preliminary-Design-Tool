@@ -1,6 +1,6 @@
 streamlit
 plotly
-numpy
+numpy == 1.26.4
 equadratures
 scipy
 pandas
