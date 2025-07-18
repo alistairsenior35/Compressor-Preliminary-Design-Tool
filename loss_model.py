@@ -47,7 +47,7 @@ def plot_blade(models, params, design_mode=False):
     r_cas = r_mid+ span/2
     
     sweep_profile = c*tand(sweep)*np.array([0, AR/3, AR/3 ,0])
-    lean_profile = c*tand(lean)*np.array([0, AR/3, AR/3 ,0])
+    lean_profile = -c*tand(lean)*np.array([0, AR/3, AR/3 ,0])
     sweep_fit=bl_spline_fit(sweep_profile)
     lean_fit=bl_spline_fit(lean_profile)
     
