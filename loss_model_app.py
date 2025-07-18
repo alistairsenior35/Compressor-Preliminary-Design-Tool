@@ -308,7 +308,8 @@ fig_blade.update_layout(
         camera=dict(
             eye=dict(x=1.8, y=1.8, z=1.8)  # top-right view angle
         ),
-        aspectmode="data"
+        aspectmode="cube",  # ensures equal scaling
+
     ),
     margin=dict(l=0, r=0, b=0, t=50),
     height=600,
