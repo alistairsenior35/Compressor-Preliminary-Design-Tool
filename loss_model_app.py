@@ -197,22 +197,22 @@ fig.update_layout(title=f"{loss_component} vs {x_var} and {y_var}", xaxis_title=
     height=600
 )
 if show_dh_lines:
-    fig.add_trace(go.Contour(
-        z=DH_z,
-        x=x_vals,
-        y=y_vals,
-        contours=dict(
-            coloring='lines',    # 👉 This changes it from filled to line contours
-            showlabels=True,     # Optional: adds numeric labels on contour lines
-            type='constraint',
-            value=dh_levels
-                ),
-        line=dict(width=2,color='black', dash='dot'),
-        name="DH Contours", 
-        opacity=1,
-        legendgroup='DH',
-        legendrank=1000   
-    ))
+    for dh_val in dh_levels:
+        fig.add_trace(go.Contour(
+            z=DH_z,
+            x=x_vals,
+            y=y_vals,
+            contours=dict(
+                coloring='lines',
+                showlabels=True,
+                value=[dh_val]  # single level
+            ),
+            line=dict(width=2, color='black', dash='dash'),
+            showscale=False,
+            name=f"DH = {dh_val:.2f}",
+            opacity=1
+        ))
 
-st.plotly_chart(fig)
+
+st.plotly_chart(fig, use_container_width=False)
 
