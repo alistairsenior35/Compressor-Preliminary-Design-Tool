@@ -33,8 +33,8 @@ def plot_blade(models, params, design_mode=False):
     chi_le,_ = evaluate(models['chi_le'], X) 
     chi_te,_ = evaluate(models['chi_te'], X) 
     if design_mode==True:
-        c = params["c"].to_numpy()
-        r_mid = params["r"].to_numpy()
+        c = params["c"]
+        r_mid = params["r"]
     else:
         c = 0.028
         r_mid = 0.3374
