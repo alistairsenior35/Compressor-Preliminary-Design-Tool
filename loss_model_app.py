@@ -30,6 +30,7 @@ sample_size = st.sidebar.slider("Grid Resolution", min_value=10, max_value=100, 
 st.sidebar.header("🛠️ Fixed Design Parameters")
 pitch_mode = st.sidebar.selectbox("Pitch-to-Chord Mode", ["DF", "3D"])
 design_mode = st.sidebar.checkbox("Design mode")
+
 if design_mode==False:
     if pitch_mode == 'DF':
         bounds = {
@@ -47,18 +48,6 @@ if design_mode==False:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
-            
-        params = pd.DataFrame({
-            x_var: flat_X,
-            y_var: flat_Y,
-        })
-        for k, v in fixed_params.items():
-            if k not in [x_var, y_var]:
-                params[k] = v
-                
-        params=calc_params(models,params,pitch_mode)    
-        fixed_params=calc_params(models,fixed_params,pitch_mode)
-        fixed_params["c"] = 0.028     
     
     elif pitch_mode == '3D':
         bounds = {
@@ -76,18 +65,6 @@ if design_mode==False:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
-            
-        params = pd.DataFrame({
-            x_var: flat_X,
-            y_var: flat_Y,
-        })
-        for k, v in fixed_params.items():
-            if k not in [x_var, y_var]:
-                params[k] = v
-                
-        params=calc_params(models,params,pitch_mode)  
-        fixed_params=calc_params(models,fixed_params,pitch_mode)
-        fixed_params["c"] = 0.028     
 else:
     if pitch_mode == 'DF':
         bounds = {
@@ -108,18 +85,6 @@ else:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
-            
-        params = pd.DataFrame({
-            x_var: flat_X,
-            y_var: flat_Y,
-        })
-        for k, v in fixed_params.items():
-            if k not in [x_var, y_var]:
-                params[k] = v
-                
-        params=calc_params(models,params,pitch_mode)  
-        fixed_params=calc_params(models,fixed_params,pitch_mode)
-        fixed_params["c"] = 0.028     
  
     elif pitch_mode == '3D':
         bounds = {
@@ -142,17 +107,7 @@ else:
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
 
-        params = pd.DataFrame({
-            x_var: flat_X,
-            y_var: flat_Y,
-        })
-        for k, v in fixed_params.items():
-            if k not in [x_var, y_var]:
-                params[k] = v
-                
-        params=calc_params(models,params,pitch_mode)  
-        fixed_params=calc_params(models,fixed_params,pitch_mode)
-        fixed_params["c"] = 0.028     
+    
 
 # Axis selectors
 st.sidebar.header("📊 Contour Axes")
@@ -171,7 +126,15 @@ flat_X = X.ravel()
 flat_Y = Y.ravel()
 
 # Create a DataFrame of all grid points
-  
+params = pd.DataFrame({
+    x_var: flat_X,
+    y_var: flat_Y,
+})
+for k, v in fixed_params.items():
+    if k not in [x_var, y_var]:
+        params[k] = v
+        
+params=calc_params(models,params,pitch_mode)        
 if design_mode==True:
     U = (params["dho kJ/kg"]/params["Ψ"])**0.5
     r = U/(2*math.pi*params["rpm"]/60)
@@ -186,9 +149,9 @@ if design_mode==True:
     tec = params["tₘᵢₙ mm"]*1e-3/c
     params["tₘₐₓ/c"] = tec/params["tᴛᴇ⁄tₘₐₓ"]
     params["r"] = r
-
-   
-   
+    
+fixed_params=calc_params(models,fixed_params,pitch_mode)
+fixed_params["c"] = 0.028        
 if design_mode==True:
     U = (fixed_params["dho kJ/kg"]/fixed_params["Ψ"])**0.5
     r = U/(2*math.pi*fixed_params["rpm"]/60)
@@ -206,6 +169,8 @@ if design_mode==True:
     fixed_params["c"] = chord
     
 fixed_params["pitch"] = fixed_params["sc"]*fixed_params["c"]
+
+
 
 # Apply vectorized loss model
 out = pred_loss(models,params)
@@ -275,7 +240,7 @@ if show_dh_lines:
             opacity=1
         ))
         
-#st.plotly_chart(fig, use_container_width=False)
+
 
 xrrt, xrrt_hub, xrrt_cas = plot_blade(models, fixed_params, design_mode)
 n_r = len(np.unique(xrrt[:, 1]))       # radial divisions

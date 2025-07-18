@@ -22,7 +22,7 @@ def plot_blade(models, params, design_mode=False):
     lean = params["θₗₑₐₙ"]
     sweep = params["θₛᵥₑₑₚ"]
     
-    X = np.reshape(np.array([phi,psi,tc,te,sc]),(1,5))   
+    X = np.reshape(np.array([float(phi),float(psi),float(tc),float(te),float(sc)]),(1,5))   
     xcl = np.linspace(0,0.2,31)
     xct = np.linspace(0.2,1,20)
 
