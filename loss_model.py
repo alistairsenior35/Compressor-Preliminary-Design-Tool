@@ -9,7 +9,174 @@ from equadratures import Parameter, Poly, Basis
 import operator as op
 from functools import reduce
 from copy import deepcopy
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, PchipInterpolator, splrep,splev, interp1d
+
+def plot_blade(models, params, design_mode=False):
+    phi = params["Φ"]
+    psi = params["Ψ"]
+    sc = params["sc"]
+    tc = params["tₘₐₓ/c"]
+    te = params["tᴛᴇ⁄tₘₐₓ"]
+    AR = params["AR"]
+    ec = params["e/c"]
+    lean = params["θₗₑₐₙ"]
+    sweep = params["θₛᵥₑₑₚ"]
+    
+    X = np.reshape(np.array([phi,psi,tc,te,sc]),(1,5))   
+    xcl = np.linspace(0,0.2,31)
+    xct = np.linspace(0.2,1,20)
+
+    xc2 = np.concatenate([xcl,xct[1:]]).reshape(-1,1)
+        
+    dcam_le,_ = evaluate(models['dcam_le'], X) 
+    dcam_te,_ = evaluate(models['dcam_te'], X) 
+    chi_le,_ = evaluate(models['chi_le'], X) 
+    chi_te,_ = evaluate(models['chi_te'], X) 
+    if design_mode==True:
+        c = params["c"].to_numpy()
+        r_mid = params["r"].to_numpy()
+    else:
+        c = 0.028
+        r_mid = 0.3374
+        
+    xu,yu,xl,yl,xcam,ycam,thick,chi, schord= gen_bladec(dcam_le[0],dcam_te[0],chi_le[0], chi_te[0],tc,te,xc2,c)
+       
+    pitch = sc*c
+    span = AR*c
+    r_hub = r_mid - span/2
+    r_cas = r_mid+ span/2
+    
+    sweep_profile = c*tand(sweep)*np.array([0, AR/3, AR/3 ,0])
+    lean_profile = c*tand(lean)*np.array([0, AR/3, AR/3 ,0])
+    sweep_fit=bl_spline_fit(sweep_profile)
+    lean_fit=bl_spline_fit(lean_profile)
+    
+    r_nondim = np.linspace(0.,1.-ec/AR,20)
+    r_span = span*r_nondim + r_hub
+    sweep_displacement = bl_spline_eval(sweep_fit, r_nondim)
+    lean_displacement = bl_spline_eval(lean_fit, r_nondim)
+
+    xrt_chord = np.column_stack((xcam, ycam))
+    xrt_upper = np.column_stack((xu, yu))
+    xrt_lower = np.column_stack((xl, yl))
+    xrt_blade = np.vstack([xrt_upper, np.flipud(xrt_lower)])
+    
+    X, R, RT = generate_blade_coordinates(xrt_blade, r_span, return_grid=True)
+    
+    # Compute sweep/lean displacement vectors for each span slice
+    p_vec = xrt_chord[-1] - xrt_chord[0]
+    p_unit = p_vec / np.linalg.norm(p_vec)
+    
+    # shape: (n_span, 2)
+    displacements = sweep_displacement[:, np.newaxis] * p_unit + \
+                    lean_displacement[:, np.newaxis] * np.array([-p_unit[1], p_unit[0]])
+    
+    # Apply to entire mesh
+    X += displacements[:, 0][:, np.newaxis]
+    RT += displacements[:, 1][:, np.newaxis]
+    
+    # Return flat [x, r, rt] array
+    xrrt = np.stack([X, R, RT], axis=2).reshape(-1, 3)
+    
+    x_min = np.min(X)
+    x_max = np.max(X)
+    x_vals = np.linspace(x_min, x_max, 50)
+    rt_vals = np.linspace(-pitch, pitch, 50)
+    
+    X, RT = np.meshgrid(x_vals, rt_vals)
+    R = np.full_like(X, r_hub)
+
+    xrrt_hub = np.stack([X, R, RT], axis=2).reshape(-1, 3)
+    R = np.full_like(X, r_cas)
+
+    xrrt_cas = np.stack([X, R, RT], axis=2).reshape(-1, 3)
+    return xrrt, xrrt_hub, xrrt_cas
+
+
+
+
+def generate_blade_coordinates(xy_profile, r_span, return_grid=False):
+    xy_profile = np.array(xy_profile)
+    r_span = np.array(r_span)
+
+    x_profile, y_profile = xy_profile[:, 0], xy_profile[:, 1]
+    n_span, n_pts = len(r_span), len(x_profile)
+
+    X = np.tile(x_profile, (n_span, 1))
+    RT = np.tile(y_profile, (n_span, 1))
+    R = r_span[:, np.newaxis].repeat(n_pts, axis=1)
+
+    if return_grid:
+        return X, R, RT
+
+    coords = np.stack([X, R, RT], axis=2).reshape(-1, 3)
+    return coords
+
+def bl_spline_fit(param):
+    """
+    Fit splines through numeric values of blade parameters in dictionary `b`.
+    Replaces each parameter with a spline representation.
+    """
+
+
+    if isinstance(param, np.ndarray) or isinstance(param, list):
+        param = np.array(param)
+        nj = len(param)
+
+        # Case 1: 2D array with explicit coordinates (x, y)
+        if param.ndim == 2 and param.shape[1] == 2:
+            x_raw, y_raw = param[:, 0], param[:, 1]
+            x_interp = np.linspace(0, 1, 100)
+            y_interp = PchipInterpolator(x_raw, y_raw)(x_interp)
+            # Fit spline (cubic B-spline representation)
+            tck = splrep(x_interp, y_interp, s=0, k=3)
+            
+        # Case 2: 1D specification only
+        elif param.ndim == 1:
+            x = np.linspace(0, 1, nj)
+            tck = splrep(x, param, s=0, k=3)
+
+
+        else:
+            print(f"⚠️ Unexpected format in {key}, skipping spline fit.")
+    
+    return tck 
+
+
+
+def bl_spline_eval(param, r_nondim):
+    """
+    Evaluate a blade definition `b` across specified normalized radius `r_nondim`.
+    Returns a new dictionary `c` with evaluated spline or interpolated values.
+    """
+    
+    # Case 1: spline representation (assumed as tuple from splrep)
+    if isinstance(param, tuple):
+        # Extrapolation if needed
+        xmin, xmax = param[0][0], param[0][-1]
+        if np.min(r_nondim) < xmin or np.max(r_nondim) > xmax:
+            # Splev extrapolates by default
+            val = splev(r_nondim, param)
+        else:
+            val = splev(r_nondim, param)
+    
+    # Case 2: raw 1D vector
+    elif param.ndim == 1:
+        if param.size == 1:
+            param = np.repeat(param, 2)
+        x = np.linspace(0, 1, len(param))
+        spline = interp1d(x, param, kind='cubic', fill_value="extrapolate")
+        val = spline(r_nondim)
+    
+    # Case 3: tabulated 2D (x,y) data
+    elif param.ndim == 2 and param.shape[1] == 2:
+        x, y = param[:, 0], param[:, 1]
+        spline = interp1d(x, y, kind='cubic', fill_value="extrapolate")
+        val = spline(r_nondim)
+
+    
+
+    return val
 
 
 def calc_params(models,params,type='DF'):
@@ -865,6 +1032,8 @@ def grad_mg(x,y):
     d2ydx2[-1] = d2ydx2[-2]
 
     return dydx, d2ydx2
+
+
 
 def gen_blade(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,ote = 1):
     chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc)

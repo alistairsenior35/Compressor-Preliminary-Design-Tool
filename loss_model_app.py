@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objs as go
-from loss_model import pred_loss, calc_params
+from loss_model import pred_loss, calc_params, plot_blade
 import pickle
 import pandas as pd
 import math
@@ -147,7 +147,27 @@ if design_mode==True:
     params["e/c"] = params["eₘᵢₙ mm"]*1e-3/c
     tec = params["tₘᵢₙ mm"]*1e-3/c
     params["tₘₐₓ/c"] = tec/params["tᴛᴇ⁄tₘₐₓ"]
-     
+    params["r"] = r
+    
+fixed_params=calc_params(models,fixed_params,pitch_mode)
+fixed_params["c"] = 0.028        
+if design_mode==True:
+    U = (fixed_params["dho kJ/kg"]/fixed_params["Ψ"])**0.5
+    r = U/(2*math.pi*fixed_params["rpm"]/60)
+    Vx = fixed_params["Φ"]*U
+    V1 = fixed_params["V1_U"]*U
+    span = fixed_params["massflow kg/s"]/(fixed_params["Density kg/m^3"]*Vx*2*math.pi*r)
+
+    chord = span/fixed_params["AR"]
+    fixed_params["Re"] = V1*c*fixed_params["Density kg/m^3"]/(1.8*10**-5)
+        #Re = Re*span/span
+    fixed_params["e/c"] = fixed_params["eₘᵢₙ mm"]*1e-3/chord
+    tec = params["tₘᵢₙ mm"]*1e-3/chord
+    fixed_params["tₘₐₓ/c"] = tec/fixed_params["tᴛᴇ⁄tₘₐₓ"]
+    fixed_params["r"] = r
+    fixed_params["c"] = chord
+    
+fixed_params["pitch"] = fixed_params["sc"]*fixed_params["c"]
 
 # Apply vectorized loss model
 out = pred_loss(models,params)
@@ -166,6 +186,9 @@ elif loss_component == "Wake Loss":
     Z_flat = out['loss_wake']
 
 
+
+
+
 DH_z = params["DH"].to_numpy().reshape(sample_size, sample_size)
 
 Z_flat[out['lost_eff_tot'] <1] = np.nan
@@ -176,12 +199,13 @@ Z = Z_flat.reshape(sample_size, sample_size)
 
     
 
+
 if loss_component == 'Total Efficiency':
     lab = "η %"
 else:
     lab = "ω"
 # Plot efficiency contours
-fig = go.Figure(data=go.Contour(
+fig_contour = go.Figure(data=go.Contour(
     z=Z,
     x=x_vals,
     y=y_vals,
@@ -192,13 +216,13 @@ fig = go.Figure(data=go.Contour(
     zmax=np.max(Z),
     line_smoothing=0.85
 ))
-fig.update_layout(title=f"{loss_component} vs {x_var} and {y_var}", xaxis_title=x_var, yaxis_title=y_var,autosize=False,
+fig_contour.update_layout(title=f"{loss_component} vs {x_var} and {y_var}", xaxis_title=x_var, yaxis_title=y_var,autosize=False,
     width=600,
     height=600
 )
 if show_dh_lines:
     for dh_val in dh_levels:
-        fig.add_trace(go.Contour(
+        fig_contour.add_trace(go.Contour(
             z=DH_z,
             x=x_vals,
             y=y_vals,
@@ -212,7 +236,94 @@ if show_dh_lines:
             name=f"DH = {dh_val:.2f}",
             opacity=1
         ))
+        
+#st.plotly_chart(fig, use_container_width=False)
+
+xrrt, xrrt_hub, xrrt_cas = plot_blade(models, fixed_params, design_mode)
+n_r = len(np.unique(xrrt[:, 1]))       # radial divisions
+n_chord = xrrt.shape[0] // n_r         # profile points per slice
+
+X = xrrt[:, 0].reshape(n_r, n_chord)
+R = xrrt[:, 1].reshape(n_r, n_chord)
+RT = xrrt[:, 2].reshape(n_r, n_chord)
+
+fig_blade = go.Figure(data=[go.Surface(
+    x=X, y=R, z=RT,
+    surfacecolor=np.ones_like(R),  # uniform color layer
+    colorscale=[[0, 'grey'], [1, 'grey']],
+    cmin=0,
+    cmax=1,
+    showscale=False,
+    opacity=1.0,
+    lighting=dict(ambient=0.6, diffuse=0.8, specular=0.3),
+
+)])
+
+fig_blade.add_trace(go.Surface(
+    x=X, y=R, z=RT+fixed_params["pitch"],
+    surfacecolor=np.ones_like(R),  # uniform color layer
+    colorscale=[[0, 'grey'], [1, 'grey']],
+    cmin=0,
+    cmax=1,
+    showscale=False,
+    opacity=1.0,
+    lighting=dict(ambient=0.6, diffuse=0.8, specular=0.3),
+
+))
+
+fig_blade.add_trace(go.Surface(
+    x=X, y=R, z=RT-fixed_params["pitch"],
+    surfacecolor=np.ones_like(R),  # uniform color layer
+    colorscale=[[0, 'grey'], [1, 'grey']],
+    cmin=0,
+    cmax=1,
+    showscale=False,
+    opacity=1.0,
+    lighting=dict(ambient=0.6, diffuse=0.8, specular=0.3),
+
+))
+
+n_r = len(np.unique(xrrt_hub[:, 1]))       # radial divisions
+n_chord = xrrt_hub.shape[0] // n_r         # profile points per slice
+
+X_hub = xrrt_hub[:, 0].reshape(n_r, n_chord)
+R_hub = xrrt_hub[:, 1].reshape(n_r, n_chord)
+RT_hub = xrrt_hub[:, 2].reshape(n_r, n_chord)
 
 
-st.plotly_chart(fig, use_container_width=False)
+n_r = len(np.unique(xrrt_cas[:, 1]))       # radial divisions
+n_chord = xrrt_cas.shape[0] // n_r         # profile points per slice
+
+X_cas= xrrt_cas[:, 0].reshape(n_r, n_chord)
+R_cas = xrrt_cas[:, 1].reshape(n_r, n_chord)
+RT_cas = xrrt_cas[:, 2].reshape(n_r, n_chord)
+
+
+fig_blade.update_layout(
+    title="🌀 Blade Surface Geometry",
+    scene=dict(
+        xaxis_title="Axial (x)",
+        yaxis_title="Radial (r)",        # vertical axis now
+        zaxis_title="Tangential (rt)",
+        camera=dict(
+            eye=dict(x=1.8, y=1.8, z=1.8)  # top-right view angle
+        ),
+        aspectmode="data"
+    ),
+    margin=dict(l=0, r=0, b=0, t=50),
+    height=600,
+    width=600
+
+)
+
+
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("Loss Contours")
+    st.plotly_chart(fig_contour, use_container_width=False)
+
+with col2:
+    st.subheader("Blade Geometry")
+    st.plotly_chart(fig_blade, use_container_width=False)
+
 
