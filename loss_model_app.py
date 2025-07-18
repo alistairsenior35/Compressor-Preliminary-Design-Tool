@@ -162,7 +162,7 @@ if design_mode==True:
     fixed_params["Re"] = V1*c*fixed_params["Density kg/m^3"]/(1.8*10**-5)
         #Re = Re*span/span
     fixed_params["e/c"] = fixed_params["eₘᵢₙ mm"]*1e-3/chord
-    tec = params["tₘᵢₙ mm"]*1e-3/chord
+    tec = fixed_params["tₘᵢₙ mm"]*1e-3/chord
     fixed_params["tₘₐₓ/c"] = tec/fixed_params["tᴛᴇ⁄tₘₐₓ"]
     fixed_params["r"] = r
     fixed_params["c"] = chord
