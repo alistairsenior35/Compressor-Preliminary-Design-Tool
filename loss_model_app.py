@@ -47,6 +47,18 @@ if design_mode==False:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
+            
+        params = pd.DataFrame({
+            x_var: flat_X,
+            y_var: flat_Y,
+        })
+        for k, v in fixed_params.items():
+            if k not in [x_var, y_var]:
+                params[k] = v
+                
+        params=calc_params(models,params,pitch_mode)    
+        fixed_params=calc_params(models,fixed_params,pitch_mode)
+        fixed_params["c"] = 0.028     
     
     elif pitch_mode == '3D':
         bounds = {
@@ -64,6 +76,18 @@ if design_mode==False:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
+            
+        params = pd.DataFrame({
+            x_var: flat_X,
+            y_var: flat_Y,
+        })
+        for k, v in fixed_params.items():
+            if k not in [x_var, y_var]:
+                params[k] = v
+                
+        params=calc_params(models,params,pitch_mode)  
+        fixed_params=calc_params(models,fixed_params,pitch_mode)
+        fixed_params["c"] = 0.028     
 else:
     if pitch_mode == 'DF':
         bounds = {
@@ -84,6 +108,18 @@ else:
         fixed_params = {}
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
+            
+        params = pd.DataFrame({
+            x_var: flat_X,
+            y_var: flat_Y,
+        })
+        for k, v in fixed_params.items():
+            if k not in [x_var, y_var]:
+                params[k] = v
+                
+        params=calc_params(models,params,pitch_mode)  
+        fixed_params=calc_params(models,fixed_params,pitch_mode)
+        fixed_params["c"] = 0.028     
  
     elif pitch_mode == '3D':
         bounds = {
@@ -106,7 +142,17 @@ else:
         for k, (low, high,value) in bounds.items():
             fixed_params[k] = st.sidebar.slider(k, min_value=low, max_value=high, value=value)
 
-    
+        params = pd.DataFrame({
+            x_var: flat_X,
+            y_var: flat_Y,
+        })
+        for k, v in fixed_params.items():
+            if k not in [x_var, y_var]:
+                params[k] = v
+                
+        params=calc_params(models,params,pitch_mode)  
+        fixed_params=calc_params(models,fixed_params,pitch_mode)
+        fixed_params["c"] = 0.028     
 
 # Axis selectors
 st.sidebar.header("📊 Contour Axes")
@@ -125,15 +171,7 @@ flat_X = X.ravel()
 flat_Y = Y.ravel()
 
 # Create a DataFrame of all grid points
-params = pd.DataFrame({
-    x_var: flat_X,
-    y_var: flat_Y,
-})
-for k, v in fixed_params.items():
-    if k not in [x_var, y_var]:
-        params[k] = v
-        
-params=calc_params(models,params,pitch_mode)        
+  
 if design_mode==True:
     U = (params["dho kJ/kg"]/params["Ψ"])**0.5
     r = U/(2*math.pi*params["rpm"]/60)
@@ -148,9 +186,9 @@ if design_mode==True:
     tec = params["tₘᵢₙ mm"]*1e-3/c
     params["tₘₐₓ/c"] = tec/params["tᴛᴇ⁄tₘₐₓ"]
     params["r"] = r
-    
-fixed_params=calc_params(models,fixed_params,pitch_mode)
-fixed_params["c"] = 0.028        
+
+   
+   
 if design_mode==True:
     U = (fixed_params["dho kJ/kg"]/fixed_params["Ψ"])**0.5
     r = U/(2*math.pi*fixed_params["rpm"]/60)
