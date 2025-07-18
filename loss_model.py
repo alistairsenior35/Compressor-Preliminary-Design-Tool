@@ -7,7 +7,6 @@ Created on Thu Jul 17 11:47:57 2025
 import numpy as np # linear algebra
 import math
 np.math = math
-np.mat = np.array
 
 from equadratures import Parameter, Poly, Basis
 import operator as op
