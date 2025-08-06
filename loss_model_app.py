@@ -308,9 +308,9 @@ n_chord = xrrt_cas.shape[0] // n_r         # profile points per slice
 X_cas= xrrt_cas[:, 0].reshape(n_r, n_chord)
 R_cas = xrrt_cas[:, 1].reshape(n_r, n_chord)
 RT_cas = xrrt_cas[:, 2].reshape(n_r, n_chord)
-scale  = 3.5*(np.max(X_hub)-np.min(X_hub))
-xrange = [np.min(X_hub), np.min(X_hub)+scale]
-rrange = [np.min(R_hub),  np.min(R_hub)+scale]
+scale  = 3.5*(np.max(X)-np.min(X))
+xrange = [np.min(X), np.min(X)+scale]
+rrange = [np.min(R),  np.min(R)+scale]
 rtrange = [np.min(RT)-2*scale/2,  np.min(RT)+2*scale/2]
 fig_blade.update_layout(
     title="🌀 Blade Surface Geometry",
@@ -346,6 +346,7 @@ with col1:
 with col2:
     st.subheader("Blade Geometry")
     st.plotly_chart(fig_blade, use_container_width=False)
+
 
 
 
