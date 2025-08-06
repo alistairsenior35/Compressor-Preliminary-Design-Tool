@@ -229,7 +229,7 @@ fig_contour = go.Figure(data=go.Contour(
 ))
 fig_contour.update_layout(title=f"{loss_component} vs {x_var} and {y_var}", xaxis_title=x_var, yaxis_title=y_var,autosize=False,
     width=600,
-    height=600
+    height=500
 )
 if show_dh_lines:
     for dh_val in dh_levels:
@@ -332,7 +332,7 @@ fig_blade.update_layout(
 
     ),
     margin=dict(l=0, r=0, b=0, t=50),
-    height=600,
+    height=500,
     width=600
 
 )
@@ -346,6 +346,7 @@ with col1:
 with col2:
     st.subheader("Blade Geometry")
     st.plotly_chart(fig_blade, use_container_width=False)
+
 
 
 
