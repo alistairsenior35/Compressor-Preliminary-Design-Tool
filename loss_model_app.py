@@ -19,14 +19,20 @@ with open('loss_model.pkl', 'rb') as fp:
 st.sidebar.header("Plot type")
 loss_component = st.sidebar.selectbox(
     "Loss Component",
-    ["Total Efficiency", "Blade Loss", "Hub Loss", "Casing Loss", "Tip Loss", "Wake Loss"]
+    ["Total Efficiency", "Total Loss","Blade Loss", "Hub Loss", "Casing Loss", "Tip Loss", "Wake Loss"]
 )
 show_dh_lines = st.sidebar.checkbox("Show Constant DH Lines")
 dh_levels = st.sidebar.multiselect("DH Values", [ 0.55, 0.6, 0.65,0.7, 0.75, 0.8,0.85,0.9], default=[0.6, 0.65, 0.7, 0.75, 0.8])
 
-st.sidebar.header("🎯 Sampling Options")
+st.sidebar.header("🎯 Display Options")
 sample_size = st.sidebar.slider("Grid Resolution", min_value=10, max_value=100, value=40, step=10)
-
+if loss_component == "Total Efficiency":
+    
+    zmin = st.sidebar.slider("η % min", min_value=60., max_value=90., value=80., step=1.0)
+    zmax = st.sidebar.slider("η % max", min_value=80., max_value=100., value=95., step=1.0)
+else:
+    zmin = st.sidebar.slider("ω min", min_value=0., max_value=0.1, value=0., step=0.005)
+    zmax = st.sidebar.slider("ω max", min_value=0.01, max_value=0.7, value=0.1, step=0.005)    
 st.sidebar.header("🛠️ Fixed Design Parameters")
 pitch_mode = st.sidebar.selectbox("Pitch-to-Chord Mode", ["DF", "3D"])
 design_mode = st.sidebar.checkbox("Design mode")
@@ -177,6 +183,8 @@ out = pred_loss(models,params)
 
 if loss_component == "Total Efficiency":
     Z_flat = 100-out['lost_eff_tot']
+elif loss_component == "Total Loss":
+    Z_flat = out['loss']
 elif loss_component == "Blade Loss":
     Z_flat = out['loss_blade']
 elif loss_component == "Hub Loss":
@@ -215,8 +223,8 @@ fig_contour = go.Figure(data=go.Contour(
     contours_coloring='heatmap',
     colorbar_title=lab,
     colorscale = 'Turbo' , 
-    zmin=np.min(Z),             # Scale matches data range
-    zmax=np.max(Z),
+    zmin=zmin,             # Scale matches data range
+    zmax=zmax,
     line_smoothing=0.85
 ))
 fig_contour.update_layout(title=f"{loss_component} vs {x_var} and {y_var}", xaxis_title=x_var, yaxis_title=y_var,autosize=False,
@@ -300,22 +308,27 @@ n_chord = xrrt_cas.shape[0] // n_r         # profile points per slice
 X_cas= xrrt_cas[:, 0].reshape(n_r, n_chord)
 R_cas = xrrt_cas[:, 1].reshape(n_r, n_chord)
 RT_cas = xrrt_cas[:, 2].reshape(n_r, n_chord)
-
-
+scale  = 3.5*(np.max(X_hub)-np.min(X_hub))
+xrange = [np.min(X_hub), np.min(X_hub)+scale]
+rrange = [np.min(R_hub),  np.min(R_hub)+scale]
+rtrange = [np.min(RT)-2*scale/2,  np.min(RT)+2*scale/2]
 fig_blade.update_layout(
     title="🌀 Blade Surface Geometry",
     scene=dict(
-        xaxis=dict(title='Axial (x)', autorange=True),
-       yaxis=dict(title='Radial (r)', autorange=True),
-       zaxis=dict(title='Tangential (rt)', autorange="reversed"),
+        xaxis=dict(title='Axial (x)', range=xrange),
+       yaxis=dict(title='Radial (r)', range=rrange),
+       zaxis=dict(title='Tangential (rt)', range=rtrange),
 
        camera=dict(
-           eye=dict(x=2, y=0.5, z=2),     # view from front-right
+           eye=dict(x=-2, y=0.5, z=2),     # view from front-right
            up=dict(x=0, y=1, z=0)         # sets radial 'up' direction
        ),
 
 
-        aspectmode="cube",  # ensures equal scaling
+        aspectmode='manual',   # Forces fixed scaling
+        aspectratio=dict(x=1, y=1, z=2)  # Equal units per axis
+
+
 
     ),
     margin=dict(l=0, r=0, b=0, t=50),
@@ -333,5 +346,8 @@ with col1:
 with col2:
     st.subheader("Blade Geometry")
     st.plotly_chart(fig_blade, use_container_width=False)
+
+
+
 
 
