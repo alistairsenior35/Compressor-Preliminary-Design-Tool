@@ -155,9 +155,10 @@ if design_mode==True:
     tec = params["tₘᵢₙ mm"]*1e-3/c
     params["tₘₐₓ/c"] = tec/params["tᴛᴇ⁄tₘₐₓ"]
     params["r"] = r
+    params["c"] = c
     
 fixed_params=calc_params(models,fixed_params,pitch_mode)
-fixed_params["c"] = 0.028        
+       
 if design_mode==True:
     U = (fixed_params["dho kJ/kg"]/fixed_params["Ψ"])**0.5
     r = U/(2*math.pi*fixed_params["rpm"]/60)
@@ -173,8 +174,10 @@ if design_mode==True:
     fixed_params["tₘₐₓ/c"] = tec/fixed_params["tᴛᴇ⁄tₘₐₓ"]
     fixed_params["r"] = r
     fixed_params["c"] = chord
-    
-fixed_params["pitch"] = fixed_params["sc"]*fixed_params["c"]
+    fixed_params["pitch"] = fixed_params["sc"]*fixed_params["c"]
+else:  
+    fixed_params["c"] = 0.028 
+    fixed_params["pitch"] = fixed_params["sc"]*fixed_params["c"]
 
 
 
@@ -249,8 +252,10 @@ if show_dh_lines:
         ))
         
 
-
-xrrt, xrrt_hub, xrrt_cas = plot_blade(models, fixed_params, design_mode)
+if design_mode == "True":
+    xrrt, xrrt_hub, xrrt_cas = plot_blade(models, fixed_params, design_mode)
+else:
+    xrrt, xrrt_hub, xrrt_cas = plot_blade(models, fixed_params, design_mode)
 n_r = len(np.unique(xrrt[:, 1]))       # radial divisions
 n_chord = xrrt.shape[0] // n_r         # profile points per slice
 
@@ -308,7 +313,7 @@ n_chord = xrrt_cas.shape[0] // n_r         # profile points per slice
 X_cas= xrrt_cas[:, 0].reshape(n_r, n_chord)
 R_cas = xrrt_cas[:, 1].reshape(n_r, n_chord)
 RT_cas = xrrt_cas[:, 2].reshape(n_r, n_chord)
-scale  = 3.5*(np.max(X)-np.min(X))
+scale  = 3.5*(fixed_params["c"])
 xrange = [np.min(X), np.min(X)+scale]
 rrange = [np.min(R),  np.min(R)+scale]
 rtrange = [np.min(RT)-2*scale/2,  np.min(RT)+2*scale/2]
@@ -346,8 +351,6 @@ with col1:
 with col2:
     st.subheader("Blade Geometry")
     st.plotly_chart(fig_blade, use_container_width=False)
-
-
 
 
 

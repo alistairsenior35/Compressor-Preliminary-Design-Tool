@@ -11,6 +11,41 @@ from functools import reduce
 from copy import deepcopy
 from scipy.interpolate import CubicSpline, PchipInterpolator, splrep,splev, interp1d
 
+
+def convert_xrrt_surface_to_xyz(X, R, RT):
+    """
+    Converts meshgrid blade surface from [x, r, rt] → [x, y, z]
+    Returns X, Y, Z arrays in Cartesian space.
+    """
+    theta = RT / R
+    Y = R * np.cos(theta)
+    Z = R * np.sin(theta)
+    return X, Y, Z
+
+
+def replicate_surface_around_annulus(xrrt_single, pitch_mid,n_blades, radius):
+    """
+    Rotates blade surface mesh around annulus.
+    Returns a list of (X, Y, Z) tuples for each blade.
+    """
+    n_r = len(np.unique(xrrt_single[:, 1]))  # radial divisions
+    n_c = xrrt_single.shape[0] // n_r        # chordwise points per radial slice
+    
+    X = xrrt_single[:, 0].reshape(n_r, n_c)
+    R = xrrt_single[:, 1].reshape(n_r, n_c)
+    RT = xrrt_single[:, 2].reshape(n_r, n_c)
+
+    blades = []
+    theta_pitch = pitch_mid / radius
+    for k in range(n_blades):
+        pitch_angle = k * theta_pitch
+        RT_shifted = RT + pitch_angle * R
+        Xk, Yk, Zk = convert_xrrt_surface_to_xyz(X, R, RT_shifted)
+        blades.append((Xk, Yk, Zk))
+    return blades
+
+
+
 def plot_blade(models, params, design_mode=False):
     phi = params["Φ"]
     psi = params["Ψ"]
@@ -886,7 +921,7 @@ def tand(ang):
     return out
 
 
-def camber(dcam_le,dcam_te,chi_le,chi_te,s_cl):
+def camber(dcam_le,dcam_te,chi_le,chi_te,s_cl,c):
     p = camber_line(dcam_le,dcam_te)
     cam = np.polyval(p,s_cl)
     chi = cam*(chi_le-chi_te) + chi_te
@@ -894,7 +929,7 @@ def camber(dcam_le,dcam_te,chi_le,chi_te,s_cl):
     x = np.cumsum(0.5*(cosd(chi[1:,0]) + cosd(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
     rt = np.cumsum(0.5*(sind(chi[1:,0]) + sind(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
     
-    sf = 0.028 / np.sum((np.diff(x,1,0)**2 + np.diff(rt,1,0)**2)**0.5)
+    sf = c / np.sum((np.diff(x,1,0)**2 + np.diff(rt,1,0)**2)**0.5)
     x_cam = (x - x[0]) * sf 
     y_cam = (rt - rt[0])*sf
 
@@ -1089,7 +1124,7 @@ def camberc(dcam_le,dcam_te,chi_le,chi_te,s_cl,c):
     return chi,x,rt, x_cam, y_cam, x_chord, y_chord
 
 def gen_bladec(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,c):
-    chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc)
+    chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc,c)
     schord = (xchord**2 +ychord**2)**0.5
     thick, S = thicknessc(tc,te,xc,c)
     nx = -np.diff(ycam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
