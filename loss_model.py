@@ -74,7 +74,7 @@ def plot_blade(models, params, design_mode=False):
         c = 0.028
         r_mid = 0.3374
         
-    xu,yu,xl,yl,xcam,ycam,thick,chi, schord= gen_bladec(dcam_le[0],dcam_te[0],chi_le[0], chi_te[0],tc,te,xc2,c)
+    xu,yu,xl,yl,xcam,ycam,thick,chi, schord= gen_blade(dcam_le[0],dcam_te[0],chi_le[0], chi_te[0],tc,te,xc2,c)
        
     pitch = sc*c
     span = AR*c
@@ -250,6 +250,7 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     lean = params["θₗₑₐₙ"].to_numpy()
     sweep = params["θₛᵥₑₑₚ"].to_numpy()
     Re = params["Re"].to_numpy()
+    c = params["c"]
     # Find out inlet and exit velcoities 
     cos_out = cos_in.flatten()/dh.flatten()
     phi, psi, DH, V1_U = angles2(cos_in,cos_out)
@@ -270,7 +271,6 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     cd_ew = 0.0029*cd_rat
     cd_tip = 0.0029*cd_rat
     cd = 0.0028*cd_rat
-    c = 0.028
 
     
     #cos_in,cos_outd, DHd, V1_U,scr =  parameters_pitch(phi,psi,0.5)
@@ -282,7 +282,7 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     if area_mod ==0:
         area_in = 0.0*sc.flatten()*caxc.flatten()
         area_pass = sc.flatten()*caxc.flatten()
-        area_out = 0.4*sc.flatten()*c
+        area_out = 0.4*sc.flatten()*caxc.flatten()
     elif area_mod ==1:
         area_in, _ = evaluate(models['a_in'], X)
         area_pass, _ = evaluate(models['a_pass'], X)
@@ -1073,7 +1073,7 @@ def grad_mg(x,y):
 
 
 def gen_blade(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,c,ote = 1):
-    chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc)
+    chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc,c)
     schord = (xchord**2 +ychord**2)**0.5
     thick, S = thickness(tc,te,xc,c,ote)
     nx = -np.diff(ycam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
@@ -1108,89 +1108,7 @@ def parameters_pitch(phi,psi,DF):
     sc = 2*(DF -1 +DH)*V1_U/psi
     return cos_in, cos_out, DH, V1_U, sc
 
-def camberc(dcam_le,dcam_te,chi_le,chi_te,s_cl,c):
-    p = camber_line(dcam_le,dcam_te)
-    cam = np.polyval(p,s_cl)
-    chi = cam*(chi_le-chi_te) + chi_te
-    #print(np.shape(chi),np.shape(s_cl))
-    x = np.cumsum(0.5*(cosd(chi[1:,0]) + cosd(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
-    rt = np.cumsum(0.5*(sind(chi[1:,0]) + sind(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
-    
-    sf = c / np.sum((np.diff(x,1,0)**2 + np.diff(rt,1,0)**2)**0.5)
-    x_cam = (x - x[0]) * sf 
-    y_cam = (rt - rt[0])*sf
 
-    # Coordinates on straight chord line
-    x_chord = (s_cl * (x[-1] - x[0]) + x[0])*sf 
-    y_chord = (s_cl * (rt[-1] - rt[0]) + rt[0]) * sf
-    return chi,x,rt, x_cam, y_cam, x_chord, y_chord
-
-def gen_bladec(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,c):
-    chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc,c)
-    schord = (xchord**2 +ychord**2)**0.5
-    thick, S = thicknessc(tc,te,xc,c)
-    nx = -np.diff(ycam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
-    ny = np.diff(xcam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
-    thick = thick*tc*c
-    xu = np.zeros(np.size(xcam))
-    yu = np.zeros(np.size(xcam))
-    xl = np.zeros(np.size(xcam))
-    yl = np.zeros(np.size(xcam))
-    # Construct both sides of blade from thickness and camber surface
-    xu[1:] = xcam[1:] + 0.5 * nx *thick[1:-1].reshape(-1,) 
-    yu[1:] = ycam[1:] + 0.5 * ny *thick[1:-1].reshape(-1,) 
-    xl[1:] = xcam[1:] - 0.5 * nx *thick[1:-1].reshape(-1,) 
-    yl[1:] = ycam[1:] - 0.5 * ny *thick[1:-1].reshape(-1,)
-    return xu, yu, xl, yl, xcam,ycam, thick, chi, schord
-
-def thicknessc(tc,te, s_cl,c):
-    thick_te = te 
-    s_thick_max = 0.38 
-    rad_thick_max = 0.18 
-    rad_le = 5 
-    wedge_te = (68  - 10*(thick_te-0.01)/0.32)
-    thick_max = tc*c
-    
-    S1 = (2*rad_le)**0.5
-    s2 = s_thick_max
-    S2 = (1 - s2 * thick_te) / ((s2**0.5) * (1 - s2))
-    a = -thick_te / ((s2**0.5) - (s2**1.5))
-    b = (1 - s2 * thick_te) *  ((1/(2*(s2**0.5))) - 1.5*(s2**0.5)) / ( ((s2**0.5) -(s2**1.5))**2 )
-    dSds_2 = a - b
-
-    # Shape space curvature at max thickness point
-    d2tds2_2 = -1 / rad_thick_max
-    a = 2 * ((1/(2*(s2**0.5))) - 1.5*(s2**0.5)) * (-thick_te) / ( ((s2**0.5) -(s2**1.5))**2 )
-    b = 2 * (((1/(2*(s2**0.5))) - 1.5*(s2**0.5))**2) / ( (s2**0.5 -s2**1.5)**3 )
-    d = ( (-1 / (4*s2**1.5)) - (0.75 / (s2**0.5)) ) / ( (s2**0.5 -s2**1.5)**2 )
-    d2Sds2_2 = -a + (b-d) * (1 - s2* thick_te) + d2tds2_2 / (s2**0.5 -s2**1.5)
-
-    # Shape space trailing edge point
-    S3 = tand(wedge_te) + thick_te
-
-    # Construct shape space spline from two cubics, rear section first
-    b = [[S2] , [dSds_2 ], [d2Sds2_2], [S3]]
-    A = [[s2**3, s2**2, s2, 1 ], [3*s2**2, 2*s2, 1, 0 ], [6*s2, 2, 0, 0 ], [1, 1, 1, 1]]
-    x_r = np.poly1d(np.linalg.solve(A,b).flatten())
-    # Calculate value, gradient and curvature at join
-    s_j = 0.3
-    S_j = np.polyval(x_r,s_j); 
-    dSds_j = np.polyval(np.polyder(x_r),s_j)
-    d2Sds2_j = np.polyval(np.polyder(np.polyder(x_r)),s_j)
-
-    # Construct cubic for front section
-    s_split = 0.11 
-    s_stretch = 0.08
-    b = [[S1] , [S_j],  [dSds_j], [d2Sds2_j]]
-    A = [[(-s_stretch)**3, (-s_stretch)**2, -s_stretch, 1 ], [s_j**3, s_j**2, s_j, 1 ], [3*s_j**2, 2*s_j, 1, 0], [6*s_j, 2, 0, 0]]
-    x_f =np.poly1d(np.linalg.solve(A,b).flatten())
-
-    # Construct stretching cubic
-    A = [[0, 0, 0, 1], [s_split**3, s_split**2, s_split, 1 ], [3*s_split**2, 2*s_split, 1, 0 ], [6*s_split, 2, 0, 0]]
-    b = [[s_stretch ], [0] ,[0 ], [0]]
-    x = np.poly1d(np.linalg.solve(A,b).flatten())
-    thick, S = calc_thick(s_cl,x,x_f,x_r,s_j,s_split,thick_te)
-    return thick, S
 
 
 
