@@ -250,7 +250,6 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     lean = params["θₗₑₐₙ"].to_numpy()
     sweep = params["θₛᵥₑₑₚ"].to_numpy()
     Re = params["Re"].to_numpy()
-    c = params["c"]
     # Find out inlet and exit velcoities 
     cos_out = cos_in.flatten()/dh.flatten()
     phi, psi, DH, V1_U = angles2(cos_in,cos_out)
