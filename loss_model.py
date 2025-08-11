@@ -387,7 +387,7 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     loss_cas_p = 2*area_pass.flatten()*cd_ss*(Vtip_p.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
     loss_cas_o = 2*area_out.flatten()*cd_ew*(Vtip_o.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
     #loss_tip_o = 2*area_out.flatten()*cd_tip*(Vtip_o.flatten()**3)/(AR.flatten()*w.flatten()*(V2.flatten()**3))
-    loss_tip = 2*(mlr.flatten())*Vtipv.flatten()/(V2_U.flatten()**2)
+    loss_tip = 2*(mlr.flatten())*Vtipv.flatten()/(V2_U.flatten())
     loss_hub = loss_hub_i.flatten() + loss_hub_p.flatten() + loss_hub_o.flatten()
     loss_cas = loss_cas_i.flatten() + loss_cas_p.flatten() + loss_cas_o.flatten()
     
@@ -1189,6 +1189,7 @@ def thicknessc(tc,te, s_cl,c):
     x = np.poly1d(np.linalg.solve(A,b).flatten())
     thick, S = calc_thick(s_cl,x,x_f,x_r,s_j,s_split,thick_te)
     return thick, S
+
 
 
 
