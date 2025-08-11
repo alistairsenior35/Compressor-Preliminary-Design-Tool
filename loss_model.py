@@ -228,7 +228,9 @@ def calc_params(models,params,type='DF'):
         X = np.concatenate((np.reshape(params["DH"],(-1,1)),np.reshape(params["Φ"],(-1,1)),np.reshape(mf,(-1,1)) ),axis=1)
         params["sc"] , _ = evaluate(models['rsc'], X)
         
-        
+    params['α₁']  = 180*np.arccos(params["cos_in"])/np.pi  
+    params['α₂']  = 180*np.arccos(params["cos_out"])/np.pi 
+    params["θₛ"] = 0.5*(params['α₁'] +params['α₂'])
     return params
 
 def predict_efficiency(models,params):
@@ -955,7 +957,7 @@ def calc_thick(s_cl,x,x_f,x_r,s_j,s_split,thick_te):
     thick = S * (s_cl**0.5 * (1 - s_cl)) + s_cl * thick_te
     return thick, S
     
-def thickness(tc,te, s_cl,ote=1):
+def thickness(tc,te, s_cl,c,ote=1):
     
     if ote == 1:
         ni_te = np.round(0.2 * len(s_cl)) 
@@ -965,8 +967,8 @@ def thickness(tc,te, s_cl,ote=1):
     rad_thick_max = 0.18 
     rad_le = 5 
     wedge_te = (68  - 10*(thick_te-0.01)/0.32)
-    thick_max = tc*0.028 
-    tchord = 0.028
+    thick_max = tc*c 
+    tchord = c
     S1 = (2*rad_le)**0.5
     s2 = s_thick_max
     S2 = (1 - s2 * thick_te) / ((s2**0.5) * (1 - s2))
@@ -1070,13 +1072,13 @@ def grad_mg(x,y):
 
 
 
-def gen_blade(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,ote = 1):
+def gen_blade(dcam_le,dcam_te,chi_le,chi_te,tc,te,xc,c,ote = 1):
     chi,x,rt,xcam,ycam, xchord, ychord = camber(dcam_le,dcam_te,chi_le,chi_te,xc)
     schord = (xchord**2 +ychord**2)**0.5
-    thick, S = thickness(tc,te,xc,ote)
+    thick, S = thickness(tc,te,xc,c,ote)
     nx = -np.diff(ycam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
     ny = np.diff(xcam)/(np.diff(xcam)**2 +np.diff(ycam)**2)**0.5
-    thick = thick*tc*0.028
+    thick = thick*tc*c
     xu = np.zeros(np.size(xcam))
     yu = np.zeros(np.size(xcam))
     xl = np.zeros(np.size(xcam))
@@ -1114,7 +1116,7 @@ def camberc(dcam_le,dcam_te,chi_le,chi_te,s_cl,c):
     x = np.cumsum(0.5*(cosd(chi[1:,0]) + cosd(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
     rt = np.cumsum(0.5*(sind(chi[1:,0]) + sind(chi[0:-1,0])) * np.diff(np.reshape(s_cl,(-1,)))) 
     
-    sf = 0.028 / np.sum((np.diff(x,1,0)**2 + np.diff(rt,1,0)**2)**0.5)
+    sf = c / np.sum((np.diff(x,1,0)**2 + np.diff(rt,1,0)**2)**0.5)
     x_cam = (x - x[0]) * sf 
     y_cam = (rt - rt[0])*sf
 
@@ -1147,7 +1149,7 @@ def thicknessc(tc,te, s_cl,c):
     rad_thick_max = 0.18 
     rad_le = 5 
     wedge_te = (68  - 10*(thick_te-0.01)/0.32)
-    thick_max = tc*0.028
+    thick_max = tc*c
     
     S1 = (2*rad_le)**0.5
     s2 = s_thick_max
@@ -1189,7 +1191,6 @@ def thicknessc(tc,te, s_cl,c):
     x = np.poly1d(np.linalg.solve(A,b).flatten())
     thick, S = calc_thick(s_cl,x,x_f,x_r,s_j,s_split,thick_te)
     return thick, S
-
 
 
 
