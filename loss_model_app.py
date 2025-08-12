@@ -242,8 +242,11 @@ if show_dh_lines:
             y=y_vals,
             contours=dict(
                 coloring='lines',
-                showlabels=True,
-                value=[dh_val]  # single level
+                showlabels=True,    
+                start=dh_val,
+                end=dh_val,
+                size=1e-6  # effectively a single contour line
+
             ),
             line=dict(width=2, color='black', dash='dash'),
             showscale=False,
@@ -351,7 +354,6 @@ with col1:
 with col2:
     st.subheader("Blade Geometry")
     st.plotly_chart(fig_blade, use_container_width=False)
-
 
 
 
