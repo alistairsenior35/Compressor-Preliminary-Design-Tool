@@ -250,18 +250,22 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     lean = params["θₗₑₐₙ"].to_numpy()
     sweep = params["θₛᵥₑₑₚ"].to_numpy()
     Re = params["Re"].to_numpy()
+    
     # Find out inlet and exit velcoities 
     cos_out = cos_in.flatten()/dh.flatten()
     phi, psi, DH, V1_U = angles2(cos_in,cos_out)
     V2_U = V1_U*DH
-    #V2 = 68.0525*V2_U
-    #V1 = 68.0525*V1_U
-    load = sc*psi*cos_in/phi
+
+    load = sc*psi*cos_in/phi # Diffusion parameter
+    
+    
     X = np.concatenate((np.reshape(AR,(-1,1)),np.reshape(ec,(-1,1)),np.reshape(V1_U,(-1,1)),np.reshape(V2_U,(-1,1)),
                              np.reshape(sc,(-1,1)),np.reshape(tc,(-1,1)),np.reshape(te,(-1,1)),np.reshape(lean,(-1,1)),np.reshape(sweep,(-1,1))),axis=1)
     
  
     tec = te*tc
+    wc = sc.flatten()*cos_out # Exit passage width over chord
+    
     theta_total = np.array([0.029328861815324, 0.023795887768032, 0.019053797904466, 0.016509195361694, 0.01453884850265, 0.012498575166737, 0.011262807009850])
     Rec = np.array([1, 2, 5, 10, 20, 50, 100])
     spl = CubicSpline(Rec, theta_total/theta_total[3])
@@ -275,10 +279,9 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     #cos_in,cos_outd, DHd, V1_U,scr =  parameters_pitch(phi,psi,0.5)
     stagger = 0.5*(np.arccos(cos_in)+np.arccos(cos_out))
     caxc =  np.cos(stagger)
-    # use area based on fixed axial distance
-    
     
     if area_mod ==0:
+        # use area based on fixed axial distance
         area_in = 0.0*sc.flatten()*caxc.flatten()
         area_pass = sc.flatten()*caxc.flatten()
         area_out = 0.4*sc.flatten()*caxc.flatten()
@@ -290,50 +293,46 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
         area_in = area_in.flatten()
         area_pass = area_pass.flatten()
         area_out = area_out.flatten()
- 
-    Vss,unc = evaluate(models['V_ss'], X) 
-    Vps,_ = evaluate(models['V_ps'], X)
-
-    Vss_mid,_ = evaluate(models['V_mid_ss'], X) 
-    Vps_mid,_ = evaluate(models['V_mid_ps'], X)
-    Vss_ew,_ = evaluate(models['V_ew_ss'], X) 
-    Vps_ew,_ = evaluate(models['V_ew_ps'], X)
-    Vss_tip,_ = evaluate(models['V_tip_ss'], X) 
-    Vps_tip,_ = evaluate(models['V_tip_ps'], X)
-    Vew_i,_ = evaluate(models['V_ew_in'], X) 
-    Vew_p,_ = evaluate(models['V_ew_pass'], X)
-    Vew_o,_ = evaluate(models['V_ew_out'], X) 
-    Vtip_i,_ = evaluate(models['V_tip_in'], X) 
-    Vtip_p,_ = evaluate(models['V_tip_pass'], X)
-    Vtip_o,_ = evaluate(models['V_tip_out'], X) 
-    Vtipv, _ = evaluate(models['tipv'], X)
-    V2tip, _ = evaluate(models['V2_tip'], X) 
-    Vr, _ = evaluate(models['Vr'], X) 
-    Vr = np.exp(Vr)
+        
+        
+    # All velocities non-dimensionalised by bladespeed at mid span unless otheriwse stated
+    Vss_U,unc = evaluate(models['V_ss'], X) 
+    Vps_U,_ = evaluate(models['V_ps'], X)
+    Vss_mid_U,_ = evaluate(models['V_mid_ss'], X) 
+    Vps_mid_U,_ = evaluate(models['V_mid_ps'], X)
+    Vss_ew_U,_ = evaluate(models['V_ew_ss'], X) 
+    Vps_ew_U,_ = evaluate(models['V_ew_ps'], X)
+    Vss_tip_U,_ = evaluate(models['V_tip_ss'], X) 
+    Vps_tip_U,_ = evaluate(models['V_tip_ps'], X)
+    Vew_i_U,_ = evaluate(models['V_ew_in'], X) 
+    Vew_p_U,_ = evaluate(models['V_ew_pass'], X)
+    Vew_o_U,_ = evaluate(models['V_ew_out'], X) 
+    Vtip_i_U,_ = evaluate(models['V_tip_in'], X) 
+    Vtip_p_U,_ = evaluate(models['V_tip_pass'], X)
+    Vtip_o_U,_ = evaluate(models['V_tip_out'], X) 
+    V2casVtip_V2U, _ = evaluate(models['tipv'], X)  # V2casing*(Vfs-Vlcos(aleak))/(U*V2)
+    V2tip_U, _ = evaluate(models['V2_tip'], X) 
+    lnVr_U, _ = evaluate(models['Vr'], X) 
+    Vr_U = np.exp(lnVr_U)
+    Vl_U, _ = evaluate(models['mass_leak'], X) # Average leakage flow velocity/U
     DHfs, _ = evaluate(models['DHfs'], X)  
     afs, _ = evaluate(models['afs'], X) 
-    #rho, _ = evaluate(models['rho'], X)
-    Vl, _ = evaluate(models['mass_leak'], X) 
+    
     sinw, _ = evaluate(models['wedge'], X) 
-    #cd_ss, _ = evaluate(models['cd_ss'], X) 
-    #cd_ss = np.exp(cd_ss)
+
+
+    # Dissipation coeficient model
     cd_ss = 0.0013 + 0.0026*(1-DH+load) +0.125*tc*ec/sc
     cd_ps, _ = evaluate(models['cd_ss'], X) 
   
-    #cd_ps = 0.8581*sc*ec**2  +0.01826*load**3/AR   -1.953e-5*sweep + 0.002676
-                            
-    #cd_ew_ss, _ = evaluate(models['cd_ew_ss'], X) 
+
     cd_ew_ss= 0.00325 +0.09*ec -0.00075*ec*lean/AR -0.0176*ec/load
     
-    #cd_ew_ps, _ = evaluate(models['cd_ew_ps'], X)
-    #cd_ew_ps= 0.002677 +0.006873*load*cos_out**3 +0.0001676*AR - 9.325e-6*sc/ec
-    #cd_ew, _ = evaluate(models['cd_ew_pass'], X)
-    #cd_ew = 0.0013 +0.0019*load*psi/phi
+
     cd_ss = cd_ss*cd_rat
     cd_ps = cd_ps*cd_rat
     cd_ew_ss = cd_ew_ss*cd_rat
-    #cd_ew_ps = cd_ew_ps*cd_rat
-    #cd_ew = cd_ew*cd_rat
+
     lim1 = 0.50
     lim2 = 0.4
     
@@ -353,58 +352,53 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
             
     cd_ew = cd
     #cd_ew_ss =cd
-    V3_V2ss = np.reshape((Vss/V2_U)**3,(-1,1))
-    V3_V2ps = np.reshape((Vps/V2_U)**3,(-1,1))
+    V3_V2ss = np.reshape((Vss_U/V2_U)**3,(-1,1))
+    V3_V2ps = np.reshape((Vps_U/V2_U)**3,(-1,1))
 
     cd_ps = cd_ss
     cd_ew_ps = cd_ss
-    #Xte = np.concatenate((X,V3_V2ps, V3_V2ss), axis=1)
-    Xte = np.concatenate((np.reshape(AR,(-1,1)),np.reshape(ec,(-1,1)),np.reshape(V3_V2ps,(-1,1)),np.reshape(V3_V2ss,(-1,1)),
-                             np.reshape(sc,(-1,1)),np.reshape(tc,(-1,1)),np.reshape(te,(-1,1)),np.reshape(lean,(-1,1)),np.reshape(sweep,(-1,1))),axis=1)
-    Vte_V2, _ = evaluate(models['VTE_ss'], X) 
-    Vtess_V2, _ = evaluate(models['VTE_sst'], X) 
-    Vte_fs, _ = evaluate(models['VTE_fs'], X)
-    btot, _ = evaluate(models['block'], Xte) 
-    btot2, _ = evaluate(models['block2'], X) 
-    H23, _ = evaluate(models['H23V'], X) 
-    V2fs_VTE_ss, _ = evaluate(models['V2fs_VTE_ss'], X,0)
-    integral, _ = evaluate(models['int'], X,0)
-        #th, _ = evaluate(models['th'], X,0)
     
 
-    w = sc.flatten()*cos_out
-    
-    mlr = Vl.flatten()*ec.flatten()/(V2_U.flatten()*AR.flatten()*w.flatten())
-  
-    
-    loss_blade_ew = 2*(0.2)*(cd_ew_ss*Vss_ew.flatten()**3 + cd_ew_ps*Vps_ew.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_blade_tip = 2*(0.2-ec.flatten())*(cd_ss*Vss_tip.flatten()**3 + cd_ps*Vps_tip.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_blade_mid = 2*(AR.flatten()-0.4)*(cd_ss*Vss_mid.flatten()**3 + cd_ps*Vps_mid.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
+    # Blade loss
+    loss_blade_ew = 2*(0.2)*(cd_ew_ss*Vss_ew_U.flatten()**3 + cd_ew_ps*Vps_ew_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_blade_tip = 2*(0.2-ec.flatten())*(cd_ss*Vss_tip_U.flatten()**3 + cd_ps*Vps_tip_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_blade_mid = 2*(AR.flatten()-0.4)*(cd_ss*Vss_mid_U.flatten()**3 + cd_ps*Vps_mid_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
     loss_blade = loss_blade_ew+loss_blade_mid+loss_blade_tip
-    loss_hub_i = 2*area_in.flatten()*cd_ew*(Vew_i.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_hub_p = 2*area_pass.flatten()*cd_ew*(Vew_p.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_hub_o = 2*area_out.flatten()*cd_ew*(Vew_o.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_cas_i = 2*area_in.flatten()*cd_ew*(Vtip_i.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_cas_p = 2*area_pass.flatten()*cd_ss*(Vtip_p.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    loss_cas_o = 2*area_out.flatten()*cd_ew*(Vtip_o.flatten()**3)/(AR.flatten()*w.flatten()*(V2_U.flatten()**3))
-    #loss_tip_o = 2*area_out.flatten()*cd_tip*(Vtip_o.flatten()**3)/(AR.flatten()*w.flatten()*(V2.flatten()**3))
-    loss_tip = 2*(mlr.flatten())*Vtipv.flatten()/(V2_U.flatten())
+    
+    # Hub loss
+    loss_hub_i = 2*area_in.flatten()*cd_ew*(Vew_i_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_hub_p = 2*area_pass.flatten()*cd_ew*(Vew_p_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_hub_o = 2*area_out.flatten()*cd_ew*(Vew_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
     loss_hub = loss_hub_i.flatten() + loss_hub_p.flatten() + loss_hub_o.flatten()
+    
+    # Casing loss
+    loss_cas_i = 2*area_in.flatten()*cd_ew*(Vtip_i_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_cas_p = 2*area_pass.flatten()*cd_ss*(Vtip_p_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_cas_o = 2*area_out.flatten()*cd_ew*(Vtip_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    
     loss_cas = loss_cas_i.flatten() + loss_cas_p.flatten() + loss_cas_o.flatten()
+    # Tip loss
+    mlr = Vl_U.flatten()*ec.flatten()/(V2_U.flatten()*AR.flatten()*wc.flatten())
+    loss_tip = 2*(mlr.flatten())*V2casVtip_V2U.flatten()/(V2_U.flatten())
+    
+    
     
     # blockage model
-     
-    loss_bl  = loss_blade*(2*0.6*V2fs_VTE_ss-1)
-    loss_block = (btot.flatten() + tec.flatten()/w.flatten())*Vte_V2.flatten()*Vte_fs.flatten()/(V2_U.flatten()**2)
-    loss_block_wedge = sinw*btot*Vtess_V2.flatten()*Vte_fs.flatten()/(V2_U.flatten())
-
-    loss_rad = Vr.flatten()/V2_U.flatten()
-    # ske model
-    #term2 = DHfs.flatten()*sind(afs.flatten())/cos_out.flatten() -np.tan(np.arccos(cos_out.flatten()))
-    #loss_ske = 0.13*(th.flatten()/AR)*2*(term2.flatten()+integral.flatten())/(DHfs.flatten()**2)
+    Xte = np.concatenate((np.reshape(AR,(-1,1)),np.reshape(ec,(-1,1)),np.reshape(V3_V2ps,(-1,1)),np.reshape(V3_V2ss,(-1,1)),
+                             np.reshape(sc,(-1,1)),np.reshape(tc,(-1,1)),np.reshape(te,(-1,1)),np.reshape(lean,(-1,1)),np.reshape(sweep,(-1,1))),axis=1)
+    Vte_V2_U, _ = evaluate(models['VTE_ss'], X) # (Vte_ss/U -V2/U)
+    Vtess_U, _ = evaluate(models['VTE_sst'], X) # Vte_ss/U
+    Vte_fs_U, _ = evaluate(models['VTE_fs'], X)# Vte_fs/U
+    btot, _ = evaluate(models['block'], Xte) 
+    V2fs_VTE_ss, _ = evaluate(models['V2fs_VTE_ss'], X,0) # V2fs/Vte_ss
     
-    
+    loss_bl  = loss_blade*(2*0.6*V2fs_VTE_ss-1) # Boundary layer non-uniformity
+    loss_block = (btot.flatten() + tec.flatten()/wc.flatten())*Vte_V2_U.flatten()*Vte_fs_U.flatten()/(V2_U.flatten()**2) # Streamwise velcoity non-uniformity
+    loss_block_wedge = sinw*btot*Vtess_U.flatten()*Vte_fs_U.flatten()/(V2_U.flatten()**2) # Tangential velcoity non-uniformity
+    loss_rad = Vr_U.flatten()/V2_U.flatten() # Radial velcoity non-uniformity
     loss_wake  = loss_bl + loss_block + loss_rad + loss_block_wedge
+    
+    # Total
     loss_tot = loss_hub.flatten() + loss_cas.flatten() +loss_blade.flatten() +loss_wake.flatten() +loss_tip.flatten()
 
 
@@ -434,18 +428,18 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     output['loss_wake'] = loss_wake
     output['loss'] = loss_tot
     output['bte'] =btot
-    output['Vte_V2'] =Vte_V2
-    output['Vte_fs'] =Vte_fs
+    output['Vte_V2_U'] =Vte_V2_U
+    output['Vte_fs_U'] =Vte_fs_U
     output['V2fs_VTE'] =V2fs_VTE_ss
-    output['Vss']=Vss_mid/V2_U.flatten()
-    output['Vps']=Vps_mid/V2_U.flatten()
+    output['Vss_V2']=Vss_mid_U/V2_U.flatten()
+    output['Vps_V2']=Vps_mid_U/V2_U.flatten()
     output['cdss']=cd_ss.flatten()
     output['cdps']=cd_ps.flatten()
-    output['Vhub'] = Vew_p/V2_U.flatten()
-    output['Vcas'] = Vtip_p/V2_U.flatten()
-    output['Vleak'] = Vtipv.flatten()/V2_U.flatten()
+    output['Vhub'] = Vew_p_U/V2_U.flatten()
+    output['Vcas'] = Vtip_p_U/V2_U.flatten()
+    output['V2casVtip_V2V2'] = V2casVtip_V2U.flatten()/V2_U.flatten()
     output['mleak'] = mlr.flatten()
-    output['Vl'] = Vl.flatten() 
+    output['Vl_U'] = Vl_U.flatten() 
     output['V2_U'] = V2_U.flatten()
     output['V1_U'] = V1_U.flatten()
     output['psi'] = psi
