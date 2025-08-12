@@ -374,7 +374,7 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     # Casing loss
     loss_cas_i = 2*area_in.flatten()*cd_ew*(Vtip_i_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
     loss_cas_p = 2*area_pass.flatten()*cd_ss*(Vtip_p_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
-    loss_cas_o = 2*area_out.flatten()*cd_ew*(Vtip_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_cas_o = 2*area_out.flatten()*cd_ss*(Vtip_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
     
     loss_cas = loss_cas_i.flatten() + loss_cas_p.flatten() + loss_cas_o.flatten()
     # Tip loss
