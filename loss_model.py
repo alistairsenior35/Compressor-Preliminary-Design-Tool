@@ -367,8 +367,8 @@ def pred_loss(models,params,area_mod =0,area_in=0,area_pass=0,area_out=0,ad=1):
     
     # Hub loss
     loss_hub_i = 2*area_in.flatten()*cd_ew*(Vew_i_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
-    loss_hub_p = 2*area_pass.flatten()*cd_ew*(Vew_p_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
-    loss_hub_o = 2*area_out.flatten()*cd_ew*(Vew_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_hub_p = 2*area_pass.flatten()*cd_ss*(Vew_p_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
+    loss_hub_o = 2*area_out.flatten()*cd_ss*(Vew_o_U.flatten()**3)/(AR.flatten()*wc.flatten()*(V2_U.flatten()**3))
     loss_hub = loss_hub_i.flatten() + loss_hub_p.flatten() + loss_hub_o.flatten()
     
     # Casing loss
